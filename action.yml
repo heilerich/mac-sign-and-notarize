@@ -1,0 +1,46 @@
+inputs:
+  appleAPIKeyID:
+    description: 'The App Store Connect API key ID.'
+    required: true
+  appleAPIKeyContents:
+    description: 'The contents of the App Store Connect API Key file (ASCII armored key).'
+    required: true
+  appleAPIIssuer:
+    description: 'The App Store Connect Issuer ID.'
+    required: true
+  signCertP12:
+    description: 'The base64-encoded contents of the certificate (P12) used to sign the app.'
+    required: true
+  signCertPassword:
+    description: 'The password used to unlock the signing certificate so that it can be imported into the keychain.'
+    required: true
+  targetApp:
+    descriptions: 'path to the app bundle to sign'
+    required: true
+
+runs:
+  using: composite
+  if: startsWith(matrix.os, 'macos')
+  steps:
+    - name: Install dependencies
+      run: brew install jq 
+    - name: Set up signing certificate
+      shell: bash
+      run: '$GITHUB_ACTIONS_PATH/scripts/import-sign-cert.sh'
+      env:
+        SIGN_CERT_P12: ${{ inputs.signCertP12 }}
+        SIGN_CERT_PASSWORD: ${{ inputs.signCertPassword }}
+    - name: Set up notarization credentials
+      shell: bash
+      run: |
+        mkdir -p ~/private_keys/
+        echo '${{ inputs.appleAPIKeyContents }}' > ~/private_keys/AuthKey_${{ inputs.appleAPIKeyID }}.p8
+    - name: Sign app
+      run: "/usr/bin/codesign --options runtime --deep -v -f -s $(security find-identity -v -p codesigning | head -n1 | grep -oe '1) [A-Z0-9]* ' | sed 's/1) //g') ${{ inputs.targetApp }}"
+    - name: Notarize app
+      shell: bash
+      run: '$GITHUB_ACTION_PATH/scripts/notarize.sh'
+      env:
+        APP_PATH: ${{ inputs.targetApp }}
+        API_KEY_ID: ${{ inputs.appleAPIKeyID }}
+        API_ISSUER: $PP inputs.appleAPIIssuer }}
