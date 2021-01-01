@@ -20,9 +20,9 @@ inputs:
 
 runs:
   using: composite
-  if: startsWith(matrix.os, 'macos')
   steps:
     - name: Install dependencies
+      shell: bash
       run: brew install jq 
     - name: Set up signing certificate
       shell: bash
@@ -36,6 +36,7 @@ runs:
         mkdir -p ~/private_keys/
         echo '${{ inputs.appleAPIKeyContents }}' > ~/private_keys/AuthKey_${{ inputs.appleAPIKeyID }}.p8
     - name: Sign app
+      shell: bash
       run: "/usr/bin/codesign --options runtime --deep -v -f -s $(security find-identity -v -p codesigning | head -n1 | grep -oe '1) [A-Z0-9]* ' | sed 's/1) //g') ${{ inputs.targetApp }}"
     - name: Notarize app
       shell: bash
